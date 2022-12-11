@@ -1,6 +1,7 @@
 -- GRNK GRID
 -- 
 -- todos: move engine selection to param page
+-- todos: switching engines will disable jf if active
 -- todos: save patterns to preset
 -- Norns UI!!!!!!
 
