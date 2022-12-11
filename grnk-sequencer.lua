@@ -1,7 +1,7 @@
 -- GRNK GRID
 -- 
 -- todos: move engine selection to param page
--- save patterns
+-- todos: save patterns to preset
 -- Norns UI!!!!!!
 
 
