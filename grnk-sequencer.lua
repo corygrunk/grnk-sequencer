@@ -3,6 +3,7 @@
 -- todos: move engine selection to param page
 -- todos: switching engines will disable jf if active
 -- todos: save patterns to preset
+-- todos: note on norns screen should reflect offset. lit note too maybe?
 -- Norns UI!!!!!!
 
 
@@ -25,7 +26,7 @@ engines[4] = 'jf'
 notes = {} -- this is the table that holds the scales notes
 note_queue = {}
 note_queue_counter = 0
-note_name = '__'
+note_name = 60
 
 playing = true
 
@@ -83,7 +84,8 @@ function init()
 
   row_max = 8 -- This shouldn't change it is the UI row length. It is used for UI maths
 
-  note_queue[1] = params:get("root_note") + 32
+  note_queue[1] = params:get("root_note")
+  note_name = params:get("root_note")
 
   tracks = {}
   for i = 1, 4 do
@@ -117,7 +119,7 @@ function init()
       end
     end
   end
-
+  
   seq_lattice = lattice:new{
     auto = true,
     meter = 4,
@@ -205,7 +207,6 @@ function track_01_step()
     tracks[1].offset_pos = 0
     sync_patterns_ready = false
   end
-  engine.cutoff(eng_cut)
   tracks[1].pos = util.wrap(tracks[1].pos+1,1,tracks[1].pattern.length) -- progress the sequence
   if tracks[1].pattern.gates[tracks[1].pos] == 1 then
     local rand = math.random(100)
@@ -238,7 +239,6 @@ function track_02_step()
     tracks[2].offset_pos = 0
     sync_patterns_ready = false
   end
-  engine.cutoff(eng_cut)
   tracks[2].pos = util.wrap(tracks[2].pos+1,1,tracks[2].pattern.length) -- progress the sequence
   if tracks[2].pattern.gates[tracks[2].pos] == 1 then
     local rand = math.random(100)
@@ -271,7 +271,6 @@ function track_03_step()
     tracks[3].offset_pos = 0
     sync_patterns_ready = false
   end 
-  engine.cutoff(eng_cut)
   tracks[3].pos = util.wrap(tracks[3].pos+1,1,tracks[3].pattern.length) -- progress the sequence
   if tracks[3].pattern.gates[tracks[3].pos] == 1 then
     local rand = math.random(100)
@@ -304,7 +303,6 @@ function track_04_step()
     tracks[4].offset_pos = 0
     sync_patterns_ready = false
   end 
-  engine.cutoff(eng_cut)
   tracks[4].pos = util.wrap(tracks[4].pos+1,1,tracks[4].pattern.length) -- progress the sequence
   if tracks[4].pattern.gates[tracks[4].pos] == 1 then
     local rand = math.random(100)
@@ -502,20 +500,18 @@ function grid_redraw()
     -- light up offsets sequence offsets
     if alt_seq_offset_edit_mode == true then
       for x = 9,8 + tracks[current_track].pattern.offset_length do
-        for y = 1,8 do
+        for y = 2,8 do
           g:led(x,y,3)
           local offset = tracks[current_track].pattern.offsets[x - 8]
-          -- TODO Better
-          -- -octave = -8
-          -- -fifth = -5
-          -- offsets = 0
-          -- third = 3
-          -- fourth = 4
-          -- fifth = 5
-          -- octave = 8
-          if offset ~= nil then
+          if offset == 0 then
             g:led(x,5 - offset,8)
           end
+          if offset == 3 then g:led(x,4,15) end -- third
+          if offset == 5 then g:led(x,3,8) end -- fifth
+          if offset == 8 then g:led(x,2,8) end -- octave
+          if offset == -3 then g:led(x,6,8) end -- -third
+          if offset == -5 then g:led(x,7,8) end -- -fifth 
+          if offset == -8 then g:led(x,8,8) end -- -octave
         end
       end
     end
@@ -537,7 +533,7 @@ function grid_redraw()
           -- sweet, note_num has all the notes for that step
           -- is this pad a note in that step? Compare note to the note on the step and light the pad.
           -- NOT QUITE WORKING
-          local pad_counter = 29 -- this keeps the notes in order from row to row in fourths
+          local pad_counter = 28 -- this keeps the notes in order from row to row in fourths
           for p = 1, 8 do -- p is the pad 1-8 in row y
             if y == p then
               for i = 1, 8 do 
@@ -602,9 +598,21 @@ function live_pad(note,record,z_state)
     play_note(tracks[current_track].source,note,eng_rel) -- play the note
     
     if record == true then
-      tracks[current_track].pattern.gates[tracks[current_track].pos] = 1
-      tracks[current_track].pattern.notes[tracks[current_track].pos] = note
-      tracks[current_track].pattern.note_lengths[tracks[current_track].pos] = eng_rel
+      if tracks[current_track].pattern.clock_div < 1/8 then -- a little hack that makes recording notes more accurate at faster clocks
+        if tracks[current_track].pos == tracks[current_track].pattern.length then
+          tracks[current_track].pattern.gates[1] = 1
+          tracks[current_track].pattern.notes[1] = note
+          tracks[current_track].pattern.note_lengths[1] = eng_rel         
+        else
+          tracks[current_track].pattern.gates[tracks[current_track].pos + 1] = 1
+          tracks[current_track].pattern.notes[tracks[current_track].pos + 1] = note
+          tracks[current_track].pattern.note_lengths[tracks[current_track].pos + 1] = eng_rel 
+        end
+      else
+        tracks[current_track].pattern.gates[tracks[current_track].pos] = 1
+        tracks[current_track].pattern.notes[tracks[current_track].pos] = note
+        tracks[current_track].pattern.note_lengths[tracks[current_track].pos] = eng_rel        
+      end
     end
   else -- note up
     note_queue_counter = note_queue_counter - 1 -- remove each added note to reset the counter
@@ -789,6 +797,7 @@ function g.key(x,y,z)
     delete_pattern_mode = false
   end
 
+  -- edit loop mode
   if z == 1 and x == 8 and y == 7 then
     edit_loop_mode = true
   end
@@ -796,6 +805,7 @@ function g.key(x,y,z)
     edit_loop_mode = false
   end
 
+  -- edit loop length
   if edit_track_mode == false and edit_loop_mode == true then
     if z == 1 and x <= 8 and y <= 4 then
       local prev_length = tracks[current_track].pattern.length
@@ -819,9 +829,9 @@ function g.key(x,y,z)
     end
   end
 
+  -- edit offset loop length
   if alt_seq_offset_edit_mode == false and edit_loop_mode == true then
     if z == 1 and x <= 8 and y == 5 then
-      print('click')
       local prev_alt_length = tracks[current_track].pattern.offset_length
       local new_length = x
       if new_length > prev_alt_length then
@@ -878,8 +888,16 @@ function g.key(x,y,z)
 
   -- offset button down
   if alt_seq_offset_edit_mode == true then
-    if z == 1 and x > 8 then
-      tracks[current_track].pattern.offsets[x - 8] = 5 - y
+    if z == 1 and x > 8 and y > 1 then
+      local offset_amt = 5 - y
+      local offset_adj = 0
+      if offset_amt == 1 then offset_adj = 3 end -- third
+      if offset_amt == 2 then offset_adj = 5 end -- fifth
+      if offset_amt == 3 then offset_adj = 8 end -- octave
+      if offset_amt == -1 then offset_adj = -3 end -- third
+      if offset_amt == -2 then offset_adj = -5 end -- fifth
+      if offset_amt == -3 then offset_adj = -8 end -- octave
+      tracks[current_track].pattern.offsets[x - 8] = offset_adj
       grid_redraw()
     end
   end
@@ -888,23 +906,23 @@ function g.key(x,y,z)
   if alt_seq_offset_edit_mode == false then
     for i = 1, 8 do
       if z == 1 then
-        if y == 8 then if x == i + 8 then live_pad(notes[i + 8], rec_state, z) end end
-        if y == 7 then if x == i + 8 then live_pad(notes[i + 11], rec_state, z) end end
-        if y == 6 then if x == i + 8 then live_pad(notes[i + 14], rec_state, z) end end
-        if y == 5 then if x == i + 8 then live_pad(notes[i + 17], rec_state, z) end end
-        if y == 4 then if x == i + 8 then live_pad(notes[i + 20], rec_state, z) end end
-        if y == 3 then if x == i + 8 then live_pad(notes[i + 23], rec_state, z) end end
-        if y == 2 then if x == i + 8 then live_pad(notes[i + 26], rec_state, z) end end
-        if y == 1 then if x == i + 8 then live_pad(notes[i + 29], rec_state, z) end end
+        if y == 8 then if x == i + 8 then live_pad(notes[i + 7], rec_state, z) end end
+        if y == 7 then if x == i + 8 then live_pad(notes[i + 10], rec_state, z) end end
+        if y == 6 then if x == i + 8 then live_pad(notes[i + 13], rec_state, z) end end
+        if y == 5 then if x == i + 8 then live_pad(notes[i + 16], rec_state, z) end end
+        if y == 4 then if x == i + 8 then live_pad(notes[i + 19], rec_state, z) end end
+        if y == 3 then if x == i + 8 then live_pad(notes[i + 22], rec_state, z) end end
+        if y == 2 then if x == i + 8 then live_pad(notes[i + 25], rec_state, z) end end
+        if y == 1 then if x == i + 8 then live_pad(notes[i + 28], rec_state, z) end end
       else
-        if y == 8 then if x == i + 8 then live_pad(notes[i + 8], rec_state, z) end end
-        if y == 7 then if x == i + 8 then live_pad(notes[i + 11], rec_state, z) end end
-        if y == 6 then if x == i + 8 then live_pad(notes[i + 14], rec_state, z) end end
-        if y == 5 then if x == i + 8 then live_pad(notes[i + 17], rec_state, z) end end
-        if y == 4 then if x == i + 8 then live_pad(notes[i + 20], rec_state, z) end end
-        if y == 3 then if x == i + 8 then live_pad(notes[i + 23], rec_state, z) end end
-        if y == 2 then if x == i + 8 then live_pad(notes[i + 26], rec_state, z) end end
-        if y == 1 then if x == i + 8 then live_pad(notes[i + 29], rec_state, z) end end
+        if y == 8 then if x == i + 8 then live_pad(notes[i + 7], rec_state, z) end end
+        if y == 7 then if x == i + 8 then live_pad(notes[i + 10], rec_state, z) end end
+        if y == 6 then if x == i + 8 then live_pad(notes[i + 13], rec_state, z) end end
+        if y == 5 then if x == i + 8 then live_pad(notes[i + 16], rec_state, z) end end
+        if y == 4 then if x == i + 8 then live_pad(notes[i + 19], rec_state, z) end end
+        if y == 3 then if x == i + 8 then live_pad(notes[i + 22], rec_state, z) end end
+        if y == 2 then if x == i + 8 then live_pad(notes[i + 25], rec_state, z) end end
+        if y == 1 then if x == i + 8 then live_pad(notes[i + 28], rec_state, z) end end
       end
     end
   end
@@ -914,7 +932,7 @@ end
 function redraw()
   screen.clear() -- clear screen
   screen.move(0,10)
-  screen.text('WIP GRNK LIVE')
+  screen.text('TRACK ' .. tostring(current_track))
   screen.move(120,10)
   local engine_text = tracks[current_track].source
   if engine_text == 'engine' then engine_text = 'PolyPerc' end
@@ -926,7 +944,8 @@ function redraw()
   screen.move(0,55)
   screen.text('prob: ' .. tracks[current_track].pattern.prob)
   screen.move(120,55)
-  screen.text_right('note: ' .. note_name)
+  -- screen.text_right('note: ' .. note_name)
+  screen.text_right('note: ' .. MusicUtil.note_num_to_name(note_name))
   screen.update()
   screen_dirty = false
 end
