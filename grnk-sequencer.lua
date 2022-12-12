@@ -3,7 +3,7 @@
 -- todos: move engine selection to param page
 -- todos: switching engines will disable jf if active
 -- todos: save patterns to preset
--- todos: note on norns screen should reflect offset. lit note too maybe?
+-- todos: note sure if my offset values are musical
 -- Norns UI!!!!!!
 
 
@@ -351,7 +351,7 @@ function play_note(source,midi_note_num,note_length,note_offset)
       crow.ii.jf.play_note((midi_note_num[i] + note_offset - 60)/12, 4)
     end
   end
-  note_name = midi_note_num[1]
+  note_name = midi_note_num[1] + note_offset
   -- for i = 1, TAB.count(midi_note_num) do
   --   -- print(midi_note_num[i])
   -- end
@@ -507,11 +507,11 @@ function grid_redraw()
             g:led(x,5 - offset,8)
           end
           if offset == 3 then g:led(x,4,15) end -- third
-          if offset == 5 then g:led(x,3,8) end -- fifth
-          if offset == 8 then g:led(x,2,8) end -- octave
-          if offset == -3 then g:led(x,6,8) end -- -third
-          if offset == -5 then g:led(x,7,8) end -- -fifth 
-          if offset == -8 then g:led(x,8,8) end -- -octave
+          if offset == 7 then g:led(x,3,8) end -- fifth
+          if offset == 12 then g:led(x,2,8) end -- octave
+          if offset == -5 then g:led(x,6,8) end -- -third
+          if offset == -9 then g:led(x,7,8) end -- -fifth 
+          if offset == -12 then g:led(x,8,8) end -- -octave
         end
       end
     end
@@ -892,11 +892,11 @@ function g.key(x,y,z)
       local offset_amt = 5 - y
       local offset_adj = 0
       if offset_amt == 1 then offset_adj = 3 end -- third
-      if offset_amt == 2 then offset_adj = 5 end -- fifth
-      if offset_amt == 3 then offset_adj = 8 end -- octave
-      if offset_amt == -1 then offset_adj = -3 end -- third
-      if offset_amt == -2 then offset_adj = -5 end -- fifth
-      if offset_amt == -3 then offset_adj = -8 end -- octave
+      if offset_amt == 2 then offset_adj = 7 end -- fifth
+      if offset_amt == 3 then offset_adj = 12 end -- octave
+      if offset_amt == -1 then offset_adj = -5 end -- third
+      if offset_amt == -2 then offset_adj = -9 end -- fifth
+      if offset_amt == -3 then offset_adj = -12 end -- octave
       tracks[current_track].pattern.offsets[x - 8] = offset_adj
       grid_redraw()
     end
@@ -944,7 +944,6 @@ function redraw()
   screen.move(0,55)
   screen.text('prob: ' .. tracks[current_track].pattern.prob)
   screen.move(120,55)
-  -- screen.text_right('note: ' .. note_name)
   screen.text_right('note: ' .. MusicUtil.note_num_to_name(note_name))
   screen.update()
   screen_dirty = false
