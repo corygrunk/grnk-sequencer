@@ -22,8 +22,9 @@ engines[1] = 'engine'
 engines[2] = 'crow 1+2'
 engines[3] = 'crow 3+4'
 engines[4] = 'jf'
+engine_counter = 1
 
-notes = {} -- this is the table that holds the scales notes
+notes = {} -- this is the table that holds the scales' notes
 note_queue = {}
 note_queue_counter = 0
 note_name = 60
@@ -32,14 +33,13 @@ playing = true
 
 current_track = 1 -- 1,2,3,4
 eng_cut = 1200
-eng_rel = 1.0
-crow_attack = 0.001
+note_attack = 0.01
+note_decay = 1.0
 
 function init()
 
   engine.cutoff(eng_cut)
-  engine.release(eng_rel)
-
+  engine.release(note_decay)
 
   crow.output[2].action = "ar(dyn{ attack = 0.001 }, dyn{ decay = 0.1 }, 10, 'logarithmic')" -- linear sine logarithmic exponential
   crow.output[4].action = "pulse(0.001, 8)" -- linear sine logarithmic exponential
@@ -102,7 +102,8 @@ function init()
         offset_length = 6,
         gates = {},
         notes = {},
-        note_lengths = {},
+        attack = {},
+        decay = {},
         offsets = {}
       },
       saves = {}
@@ -113,7 +114,8 @@ function init()
     for n = 1, tracks[i].pattern.length do
       tracks[i].pattern.gates[n] = 0 -- start with 0's in every step
       tracks[i].pattern.notes[n] = note_queue[1] -- start with root note in every step
-      tracks[i].pattern.note_lengths[n] = eng_rel -- start with the engine release in every step
+      tracks[i].pattern.attack[n] = note_attack -- start with the engine release in every step
+      tracks[i].pattern.decay[n] = note_decay -- start with the engine release in every step
       if n <= tracks[i].pattern.offset_length then
         tracks[i].pattern.offsets[n] = 0 -- start no offsets
       end
@@ -218,7 +220,8 @@ function track_01_step()
         play_note(
           tracks[1].source,
           tracks[1].pattern.notes[tracks[1].pos],
-          tracks[1].pattern.note_lengths[tracks[1].pos],
+          tracks[1].pattern.attack[tracks[1].pos],
+          tracks[1].pattern.decay[tracks[1].pos],
           tracks[1].pattern.offsets[tracks[1].offset_pos]
         )
       end
@@ -250,7 +253,8 @@ function track_02_step()
         play_note(
           tracks[2].source,
           tracks[2].pattern.notes[tracks[2].pos],
-          tracks[2].pattern.note_lengths[tracks[2].pos],
+          tracks[2].pattern.attack[tracks[2].pos],
+          tracks[2].pattern.decay[tracks[2].pos],
           tracks[2].pattern.offsets[tracks[2].offset_pos]
         )
       end
@@ -282,7 +286,8 @@ function track_03_step()
         play_note(
           tracks[3].source,
           tracks[3].pattern.notes[tracks[3].pos],
-          tracks[3].pattern.note_lengths[tracks[3].pos],
+          tracks[3].pattern.attack[tracks[3].pos],
+          tracks[3].pattern.decay[tracks[3].pos],
           tracks[3].pattern.offsets[tracks[3].offset_pos]
         )
       end
@@ -314,7 +319,8 @@ function track_04_step()
         play_note(
           tracks[4].source,
           tracks[4].pattern.notes[tracks[4].pos],
-          tracks[4].pattern.note_lengths[tracks[4].pos],
+          tracks[4].pattern.attack[tracks[4].pos],
+          tracks[4].pattern.decay[tracks[4].pos],
           tracks[4].pattern.offsets[tracks[4].offset_pos]
         )
       end
@@ -325,7 +331,7 @@ function track_04_step()
   if grid_dirty then grid_redraw() end
 end
 
-function play_note(source,midi_note_num,note_length,note_offset)
+function play_note(source,midi_note_num,note_att,note_dec,note_offset)
   if note_offset == nil then 
     note_offset = 0 
   end
@@ -336,12 +342,14 @@ function play_note(source,midi_note_num,note_length,note_offset)
   end
   if source == "engine" then
     for i = 1, TAB.count(midi_note_num) do
-      engine.release(note_length)
+      engine.cutoff(eng_cut)
+      engine.release(note_dec)
       engine.hz(MusicUtil.note_num_to_freq(midi_note_num[i] + note_offset))
     end
   elseif source == "crow 1+2" then
     crow.output[1].volts = (midi_note_num[1] + note_offset)/12
-    crow.output[2].dyn.decay = note_length
+    crow.output[2].dyn.attack = note_att
+    crow.output[2].dyn.decay = note_dec
     crow.output[2]()
   elseif source == "crow 3+4" then
     crow.output[3].volts = (midi_note_num[1] + note_offset)/12
@@ -367,13 +375,14 @@ function save_pattern(save_slot)
   tracks[current_track].saves[save_slot].offset_length = tracks[current_track].pattern.offset_length
   tracks[current_track].saves[save_slot].gates = {}
   tracks[current_track].saves[save_slot].notes = {}
-  tracks[current_track].saves[save_slot].note_lengths = {}
-  tracks[current_track].saves[save_slot].note_lengths = {}
+  tracks[current_track].saves[save_slot].attack = {}
+  tracks[current_track].saves[save_slot].decay = {}
   tracks[current_track].saves[save_slot].offsets = {}
   for i = 1, tracks[current_track].pattern.length do
     tracks[current_track].saves[save_slot].gates[i] = tracks[current_track].pattern.gates[i]
     tracks[current_track].saves[save_slot].notes[i] = tracks[current_track].pattern.notes[i]
-    tracks[current_track].saves[save_slot].note_lengths[i] = tracks[current_track].pattern.note_lengths[i]
+    tracks[current_track].saves[save_slot].attack[i] = tracks[current_track].pattern.attack[i]
+    tracks[current_track].saves[save_slot].decay[i] = tracks[current_track].pattern.decay[i]
   end
   for i = 1, tracks[current_track].pattern.offset_length do
     tracks[current_track].saves[save_slot].offsets[i] = tracks[current_track].pattern.offsets[i]
@@ -390,13 +399,14 @@ function load_pattern(load_slot)
   tracks[current_track].pattern.offset_length = tracks[current_track].saves[load_slot].offset_length
   tracks[current_track].pattern.gates = {}
   tracks[current_track].pattern.notes = {}
-  tracks[current_track].pattern.note_lengths = {}
-  tracks[current_track].pattern.note_lengths = {}
+  tracks[current_track].pattern.attack = {}
+  tracks[current_track].pattern.decay = {}
   tracks[current_track].pattern.offsets = {}
   for i = 1, tracks[current_track].saves[load_slot].length do
     tracks[current_track].pattern.gates[i] = tracks[current_track].saves[load_slot].gates[i]
     tracks[current_track].pattern.notes[i] = tracks[current_track].saves[load_slot].notes[i]
-    tracks[current_track].pattern.note_lengths[i] = tracks[current_track].saves[load_slot].note_lengths[i]
+    tracks[current_track].pattern.attack[i] = tracks[current_track].saves[load_slot].attack[i]
+    tracks[current_track].pattern.decay[i] = tracks[current_track].saves[load_slot].decay[i]
   end
   for i = 1, tracks[current_track].saves[load_slot].offset_length do
     tracks[current_track].pattern.offsets[i] = tracks[current_track].saves[load_slot].offsets[i]
@@ -595,23 +605,26 @@ function live_pad(note,record,z_state)
     elseif note_queue_counter > 1 then -- add additional notes
       note_queue[note_queue_counter] = note
     end
-    play_note(tracks[current_track].source,note,eng_rel) -- play the note
+    play_note(tracks[current_track].source,note,note_attack,note_decay) -- play the note
     
     if record == true then
       if tracks[current_track].pattern.clock_div < 1/8 then -- a little hack that makes recording notes more accurate at faster clocks
         if tracks[current_track].pos == tracks[current_track].pattern.length then
           tracks[current_track].pattern.gates[1] = 1
           tracks[current_track].pattern.notes[1] = note
-          tracks[current_track].pattern.note_lengths[1] = eng_rel         
+          tracks[current_track].pattern.attack[1] = note_attack
+          tracks[current_track].pattern.decay[1] = note_decay         
         else
           tracks[current_track].pattern.gates[tracks[current_track].pos + 1] = 1
           tracks[current_track].pattern.notes[tracks[current_track].pos + 1] = note
-          tracks[current_track].pattern.note_lengths[tracks[current_track].pos + 1] = eng_rel 
+          tracks[current_track].pattern.attack[tracks[current_track].pos + 1] = note_attack 
+          tracks[current_track].pattern.decay[tracks[current_track].pos + 1] = note_decay 
         end
       else
         tracks[current_track].pattern.gates[tracks[current_track].pos] = 1
         tracks[current_track].pattern.notes[tracks[current_track].pos] = note
-        tracks[current_track].pattern.note_lengths[tracks[current_track].pos] = eng_rel        
+        tracks[current_track].pattern.attack[tracks[current_track].pos] = note_attack
+        tracks[current_track].pattern.decay[tracks[current_track].pos] = note_decay        
       end
     end
   else -- note up
@@ -641,6 +654,17 @@ function shuffle(t)
   return tbl
 end
 
+function randomize_seq(track_num,min,max)
+    -- shuffle existing notes and gates
+    -- tracks[track_num].pattern.gates = shuffle(tracks[track_num].pattern.gates)
+    -- tracks[track_num].pattern.notes = shuffle(tracks[track_num].pattern.notes)
+    -- really random
+    for i = 1, tracks[track_num].pattern.length do
+      tracks[track_num].pattern.gates[i] = math.random(0,1)
+      tracks[track_num].pattern.notes[i] = notes[math.random(min,max)]
+    end
+end
+
 
 function g.key(x,y,z)
   -- print(x .. ',' .. y .. ',' .. z)
@@ -660,14 +684,7 @@ function g.key(x,y,z)
 
   -- randomize sequence
   if x == 2 and y == 8 and z == 1 then
-    -- shuffle existing notes and gates
-    -- tracks[current_track].pattern.gates = shuffle(tracks[current_track].pattern.gates)
-    -- tracks[current_track].pattern.notes = shuffle(tracks[current_track].pattern.notes)
-    -- really random
-    for i = 1, tracks[current_track].pattern.length do
-      tracks[current_track].pattern.gates[i] = math.random(0,1)
-      tracks[current_track].pattern.notes[i] = notes[math.random(24,32)]
-    end
+    randomize_seq(current_track,24,32)
   end
 
   -- clear sequence
@@ -681,14 +698,15 @@ function g.key(x,y,z)
   -- randomize note lengths
   if x == 5 and y == 8 and z == 1 then
     for i = 1, tracks[current_track].pattern.length do
-      tracks[current_track].pattern.note_lengths[i] = math.random(1,7) * 0.1
+      tracks[current_track].pattern.decay[i] = math.random(1,7) * 0.1
     end
   end
 
   -- reset note lengths
   if x == 6 and y == 8 and z == 1 then
     for i = 1, tracks[current_track].pattern.length do
-      tracks[current_track].pattern.note_lengths[i] = eng_rel
+      tracks[current_track].pattern.attack[i] = note_attack
+      tracks[current_track].pattern.decay[i] = note_decay
     end
   end
 
@@ -822,7 +840,8 @@ function g.key(x,y,z)
           if tracks[current_track].pattern.gates[i] == nil then
             tracks[current_track].pattern.gates[i] = 0
             tracks[current_track].pattern.notes[i] = 60
-            tracks[current_track].pattern.note_lengths[i] = eng_rel
+            tracks[current_track].pattern.attack[i] = note_attack
+            tracks[current_track].pattern.decay[i] = note_decay
           end
         end
       end
@@ -864,7 +883,8 @@ function g.key(x,y,z)
           tracks[current_track].pattern.gates[button_number] = 0
         else
           tracks[current_track].pattern.notes[button_number] = note_queue
-          tracks[current_track].pattern.note_lengths[button_number] = eng_rel
+          tracks[current_track].pattern.attack[button_number] = note_attack
+          tracks[current_track].pattern.decay[button_number] = note_decay
           tracks[current_track].pattern.gates[button_number] = 1
         end
         grid_redraw()
@@ -934,13 +954,32 @@ function redraw()
   screen.move(0,10)
   screen.text('TRACK ' .. tostring(current_track))
   screen.move(120,10)
+
   local engine_text = tracks[current_track].source
   if engine_text == 'engine' then engine_text = 'PolyPerc' end
+
   screen.text_right(engine_text)
   screen.move(0,35)
-  screen.text('cutoff: ' .. eng_cut)
+
+  local cutoff_decay = 'cutoff'
+  local att_amt = eng_cut
+  local dec_amt = note_decay
+  if engine_text == 'engine' then cutoff_decay = 'cutoff' end
+  if engine_text == 'engine' then att_amt = eng_cut end
+  if engine_text == 'engine' then dec_amt = note_decay end
+  if engine_text == 'crow 1+2' then cutoff_decay = 'attack' end
+  if engine_text == 'crow 1+2' then att_amt = note_attack end
+  if engine_text == 'crow 1+2' then dec_amt = note_decay end
+  if engine_text == 'crow 3+4' then cutoff_decay = 'attack' end
+  if engine_text == 'crow 3+4' then att_amt = note_attack end
+  if engine_text == 'crow 3+4' then dec_amt = note_decay end
+  if engine_text == 'jf' then cutoff_decay = 'attack' end
+  if engine_text == 'jf' then att_amt = 'n/a' end
+  if engine_text == 'jf' then dec_amt = 'n/a' end
+  -- TODO: need to add attack
+  screen.text(cutoff_decay .. ': ' .. att_amt)
   screen.move(0,45)
-  screen.text('release: ' .. eng_rel)
+  screen.text('decay: ' .. dec_amt)
   screen.move(0,55)
   screen.text('prob: ' .. tracks[current_track].pattern.prob)
   screen.move(120,55)
@@ -951,7 +990,7 @@ end
 
 alt_func = false
 
-engine_counter = 1
+
 
 function key(n,z)
   if z == 1 and n == 1 then
@@ -970,6 +1009,9 @@ function key(n,z)
     tracks[current_track].source = engines[engine_counter]
     redraw()
   end
+  if z == 1 and n == 3 then
+    randomize_seq(current_track,24,32)
+  end
 end
 
 function enc(n,d)
@@ -982,7 +1024,8 @@ function enc(n,d)
           if tracks[current_track].pattern.gates[i] == nil then
             tracks[current_track].pattern.gates[i] = 0
             tracks[current_track].pattern.notes[i] = 60
-            tracks[current_track].pattern.note_lengths[i] = eng_rel
+            tracks[current_track].pattern.attack[i] = note_attack
+            tracks[current_track].pattern.decay[i] = note_decay
           end
         end
       end
@@ -992,17 +1035,29 @@ function enc(n,d)
     end
     redraw()
   end
-  if n == 2 then -- if encoder 3, then...
+  if n == 2 then
     if not alt_func then
-      eng_cut = util.clamp(eng_cut + d*10,100,6000)
-      -- crow_attack = util.clamp(crow_attack + d*0.01, 2, 0.1)
+      if tracks[current_track].source == engines[1] then
+        eng_cut = util.clamp(eng_cut + d*10, 100, 6000)
+      end
+      if tracks[current_track].source == engines[2] or tracks[current_track].source == engines[3] then
+        if note_attack < 0.2 then -- fine adjust
+          note_attack = util.clamp(note_attack + d*0.01, 0.001, 5)
+        else -- coarse adjust
+          note_attack = util.clamp(note_attack + d*0.1, 0.01, 5)
+        end
+      end
       redraw()
     else
       print('alt enc 2')
     end
   elseif n == 3 then
     if not alt_func then
-      eng_rel = util.clamp(eng_rel + d*0.1,0.1,5)
+      if note_decay < 0.2 then -- fine adjust
+        note_decay = util.clamp(note_decay + d*0.01, 0.001, 5)
+      else -- coarse adjust
+        note_decay = util.clamp(note_decay + d*0.1, 0.01, 5)
+      end
       redraw()
     else
       tracks[current_track].pattern.prob = util.clamp(tracks[current_track].pattern.prob + d*5,0,100)
