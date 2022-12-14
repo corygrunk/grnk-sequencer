@@ -1,9 +1,9 @@
 -- GRNK GRID
 -- 
+-- todos: offsets aren't working correctly. They don't seem to be triggering on the right step.
 -- todos: move engine selection to param page
 -- todos: switching engines will disable jf if active
 -- todos: save patterns to preset
--- todos: note sure if my offset values are musical
 -- Norns UI!!!!!!
 
 
@@ -20,7 +20,7 @@ scale_names = {}
 engines = {}
 engines[1] = 'engine'
 engines[2] = 'crow 1+2'
-engines[3] = 'crow 3+4'
+engines[3] = 'crow 3 env'
 engines[4] = 'jf'
 engine_counter = 1
 
@@ -34,7 +34,7 @@ playing = true
 current_track = 1 -- 1,2,3,4
 eng_cut = 1200
 note_attack = 0.01
-note_decay = 1.0
+note_decay = 0.3
 
 function init()
 
@@ -42,7 +42,8 @@ function init()
   engine.release(note_decay)
 
   crow.output[2].action = "ar(dyn{ attack = 0.001 }, dyn{ decay = 0.1 }, 10, 'logarithmic')" -- linear sine logarithmic exponential
-  crow.output[4].action = "pulse(0.001, 8)" -- linear sine logarithmic exponential
+  crow.output[3].action = "ar(dyn{ attack = 0.001 }, dyn{ decay = 0.1 }, 10, 'logarithmic')" -- linear sine logarithmic exponential
+  -- crow.output[4].action = "pulse(0.001, 8)" -- linear sine logarithmic exponential
 
   for i = 1, #MusicUtil.SCALES do
     table.insert(scale_names, MusicUtil.SCALES[i].name)
@@ -73,6 +74,7 @@ function init()
   edit_loop_mode = false
   alt_seq_offset_edit_mode = false
   sync_patterns_ready = false
+  looper_rec = false
 
   clock_div_options = {}
   clock_div_options[1] = 1
@@ -96,7 +98,7 @@ function init()
       step_counter = 0,
       pattern = {
         clock_div = 1/16,
-        offsets_clock_div = 1/8,
+        offsets_clock_div = 1/16,
         prob = 100,
         length = 16,
         offset_length = 6,
@@ -198,6 +200,7 @@ function redraw_clock()
     end
   end
 end
+
 
 -- TRACK 01 STEPS and OFFSET
 function track_01_offset_step()
@@ -347,13 +350,16 @@ function play_note(source,midi_note_num,note_att,note_dec,note_offset)
       engine.hz(MusicUtil.note_num_to_freq(midi_note_num[i] + note_offset))
     end
   elseif source == "crow 1+2" then
-    crow.output[1].volts = (midi_note_num[1] + note_offset)/12
+    crow.output[1].volts = (midi_note_num[1] + note_offset - 60)/12
     crow.output[2].dyn.attack = note_att
     crow.output[2].dyn.decay = note_dec
     crow.output[2]()
-  elseif source == "crow 3+4" then
-    crow.output[3].volts = (midi_note_num[1] + note_offset)/12
-    crow.output[4]()
+  elseif source == "crow 3 env" then
+    -- crow.output[3].volts = (midi_note_num[1] + note_offset - 60)/12
+    -- crow.output[4]()
+    crow.output[3].dyn.attack = note_att
+    crow.output[3].dyn.decay = note_dec
+    crow.output[3]()
   elseif source == "jf" then
     for i = 1, TAB.count(midi_note_num) do
       crow.ii.jf.play_note((midi_note_num[i] + note_offset - 60)/12, 4)
@@ -586,6 +592,10 @@ function grid_redraw()
     -- light up loop edit
     g:led(8,7,3)
 
+    -- light w/ looper
+    if looper_rec == true then g:led(7,7,8) end
+    if looper_rec == false then g:led(7,7,3) end
+
     -- light up pattern/offset sync
     g:led(8,8,3)
 
@@ -608,24 +618,10 @@ function live_pad(note,record,z_state)
     play_note(tracks[current_track].source,note,note_attack,note_decay) -- play the note
     
     if record == true then
-      if tracks[current_track].pattern.clock_div < 1/8 then -- a little hack that makes recording notes more accurate at faster clocks
-        if tracks[current_track].pos == tracks[current_track].pattern.length then
-          tracks[current_track].pattern.gates[1] = 1
-          tracks[current_track].pattern.notes[1] = note
-          tracks[current_track].pattern.attack[1] = note_attack
-          tracks[current_track].pattern.decay[1] = note_decay         
-        else
-          tracks[current_track].pattern.gates[tracks[current_track].pos + 1] = 1
-          tracks[current_track].pattern.notes[tracks[current_track].pos + 1] = note
-          tracks[current_track].pattern.attack[tracks[current_track].pos + 1] = note_attack 
-          tracks[current_track].pattern.decay[tracks[current_track].pos + 1] = note_decay 
-        end
-      else
-        tracks[current_track].pattern.gates[tracks[current_track].pos] = 1
-        tracks[current_track].pattern.notes[tracks[current_track].pos] = note
-        tracks[current_track].pattern.attack[tracks[current_track].pos] = note_attack
-        tracks[current_track].pattern.decay[tracks[current_track].pos] = note_decay        
-      end
+      tracks[current_track].pattern.gates[tracks[current_track].pos] = 1
+      tracks[current_track].pattern.notes[tracks[current_track].pos] = note
+      tracks[current_track].pattern.attack[tracks[current_track].pos] = note_attack
+      tracks[current_track].pattern.decay[tracks[current_track].pos] = note_decay 
     end
   else -- note up
     note_queue_counter = note_queue_counter - 1 -- remove each added note to reset the counter
@@ -671,16 +667,11 @@ function g.key(x,y,z)
 
   -- live record
   if x == 1 and y == 8 and z == 1 then
-    if rec_state == false then
-      rec_state = true
-    else
-      rec_state = false
-    end
-    grid_dirty = true
+    rec_state = true
   end
-  -- if x == 1 and y == 8 and z == 0 then
-  --   rec_state = false
-  -- end
+  if x == 1 and y == 8 and z == 0 then
+    rec_state = false
+  end
 
   -- randomize sequence
   if x == 2 and y == 8 and z == 1 then
@@ -713,6 +704,8 @@ function g.key(x,y,z)
   -- sync current / all patterns and offsets
   if x == 8 and y == 8 and z == 1 then
     sync_patterns_ready = true
+    -- I think this hard_reset is acting oddly. I get some core/clock.resume errors sometimes.
+    -- seq_lattice:hard_restart()
   end
 
   -- track select / pattern select
@@ -970,9 +963,9 @@ function redraw()
   if engine_text == 'crow 1+2' then cutoff_decay = 'attack' end
   if engine_text == 'crow 1+2' then att_amt = note_attack end
   if engine_text == 'crow 1+2' then dec_amt = note_decay end
-  if engine_text == 'crow 3+4' then cutoff_decay = 'attack' end
-  if engine_text == 'crow 3+4' then att_amt = note_attack end
-  if engine_text == 'crow 3+4' then dec_amt = note_decay end
+  if engine_text == 'crow 3 env' then cutoff_decay = 'attack' end
+  if engine_text == 'crow 3 env' then att_amt = note_attack end
+  if engine_text == 'crow 3 env' then dec_amt = note_decay end
   if engine_text == 'jf' then cutoff_decay = 'attack' end
   if engine_text == 'jf' then att_amt = 'n/a' end
   if engine_text == 'jf' then dec_amt = 'n/a' end
@@ -1041,11 +1034,12 @@ function enc(n,d)
         eng_cut = util.clamp(eng_cut + d*10, 100, 6000)
       end
       if tracks[current_track].source == engines[2] or tracks[current_track].source == engines[3] then
-        if note_attack < 0.2 then -- fine adjust
-          note_attack = util.clamp(note_attack + d*0.01, 0.001, 5)
-        else -- coarse adjust
-          note_attack = util.clamp(note_attack + d*0.1, 0.01, 5)
-        end
+        -- if note_attack < 0.2 then -- fine adjust
+        --   note_attack = util.clamp(note_attack + d*0.01, 0.001, 5)
+        -- else -- coarse adjust
+        --   note_attack = util.clamp(note_attack + d*0.1, 0.01, 5)
+        -- end
+        note_attack = util.clamp(note_attack + d*0.01, 0.01, 5)
       end
       redraw()
     else
@@ -1053,11 +1047,7 @@ function enc(n,d)
     end
   elseif n == 3 then
     if not alt_func then
-      if note_decay < 0.2 then -- fine adjust
-        note_decay = util.clamp(note_decay + d*0.01, 0.001, 5)
-      else -- coarse adjust
-        note_decay = util.clamp(note_decay + d*0.1, 0.01, 5)
-      end
+      note_decay = util.clamp(note_decay + d*0.01, 0.01, 5)
       redraw()
     else
       tracks[current_track].pattern.prob = util.clamp(tracks[current_track].pattern.prob + d*5,0,100)
