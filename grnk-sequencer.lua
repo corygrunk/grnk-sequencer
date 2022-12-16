@@ -1,5 +1,8 @@
 -- GRNK GRID
 -- 
+-- crow out 1+2 - 1v/oct - ar envelope
+-- crow out 3 - ar envelope
+--
 -- todos: offsets aren't working correctly. They don't seem to be triggering on the right step.
 -- todos: move engine selection to param page
 -- todos: switching engines will disable jf if active
@@ -21,7 +24,7 @@ engines = {}
 engines[1] = 'engine'
 engines[2] = 'crow 1+2'
 engines[3] = 'crow 3 env'
-engines[4] = 'jf'
+-- engines[4] = 'jf'
 engine_counter = 1
 
 notes = {} -- this is the table that holds the scales' notes
@@ -42,8 +45,9 @@ function init()
   engine.release(note_decay)
 
   crow.output[2].action = "ar(dyn{ attack = 0.001 }, dyn{ decay = 0.1 }, 10, 'logarithmic')" -- linear sine logarithmic exponential
+  -- crow.output[4].action = "ar(dyn{ attack = 0.001 }, dyn{ decay = 0.1 }, 10, 'logarithmic')" -- linear sine logarithmic exponential
   crow.output[3].action = "ar(dyn{ attack = 0.001 }, dyn{ decay = 0.1 }, 10, 'logarithmic')" -- linear sine logarithmic exponential
-  -- crow.output[4].action = "pulse(0.001, 8)" -- linear sine logarithmic exponential
+  -- crow.output[4].action = "lfo(0.5, 5, 'sine')" -- linear sine logarithmic exponential
 
   for i = 1, #MusicUtil.SCALES do
     table.insert(scale_names, MusicUtil.SCALES[i].name)
@@ -174,7 +178,6 @@ function init()
     division = tracks[4].pattern.offsets_clock_div,
     enabled = true
   }
-
 
   seq_lattice:start()
 
@@ -356,7 +359,6 @@ function play_note(source,midi_note_num,note_att,note_dec,note_offset)
     crow.output[2]()
   elseif source == "crow 3 env" then
     -- crow.output[3].volts = (midi_note_num[1] + note_offset - 60)/12
-    -- crow.output[4]()
     crow.output[3].dyn.attack = note_att
     crow.output[3].dyn.decay = note_dec
     crow.output[3]()
@@ -996,8 +998,8 @@ function key(n,z)
     if engine_counter > TAB.count(engines) then engine_counter = 1 end
     if engines[engine_counter] == 'jf' then
       crow.ii.jf.mode(1)
-    else
-      crow.ii.jf.mode(0)
+    -- else
+    --   crow.ii.jf.mode(0)
     end
     tracks[current_track].source = engines[engine_counter]
     redraw()
