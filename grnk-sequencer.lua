@@ -77,10 +77,6 @@ function init()
   edit_loop_mode = false
   alt_seq_offset_edit_mode = false
   sync_patterns_ready = false
-  looper_rec = false
-  looper_rec_armed = false
-  looper_rec_end_armed = false
-  looper_direction = 1
 
   clock_div_options = {}
   clock_div_options[1] = 1
@@ -212,14 +208,6 @@ function track_01_offset_step()
   tracks[1].offset_pos = util.wrap(tracks[1].offset_pos+1,1,tracks[1].pattern.offset_length) -- progress the alt sequence
 end
 function track_01_step()
-  if looper_rec_armed == true then
-    looper_start()
-    looper_rec_armed = false
-  end
-  if looper_rec_end_armed == true then
-    looper_end()
-    looper_rec_end_armed = false
-  end
   if sync_patterns_ready == true and current_track == 1 then
     tracks[1].pos = 0
     tracks[1].offset_pos = 0
@@ -437,25 +425,6 @@ function delete_pattern(pattern_slot)
   print('pattern deleted')
 end
 
-function looper_start()
-  looper_rec_armed = true
-  crow.ii.wtape.timestamp(10)
-  crow.ii.wtape.speed(1)
-  crow.ii.wtape.erase_strength(1)
-  crow.ii.wtape.record(1)
-  crow.ii.wtape.play(1)
-  crow.ii.wtape.loop_start(1)
-  print('start loop record')
-end
-
-function looper_end()
-  looper_rec_end_armed = true
-  crow.ii.wtape.record(0)
-  crow.ii.wtape.loop_end(1)
-  crow.ii.wtape.loop_active(1)
-  print('finish recording and loop')
-end
-
 function grid_redraw()
   if grid_connected then -- only redraw if there's a grid connected
     g:all(0) -- turn all the LEDs off
@@ -623,10 +592,6 @@ function grid_redraw()
     -- light up loop edit
     g:led(8,7,3)
 
-    -- light w/ looper
-    if looper_rec == true then g:led(8,6,8) end
-    if looper_rec == false then g:led(8,6,3) end
-
     -- light up pattern/offset sync
     g:led(8,8,3)
 
@@ -723,47 +688,6 @@ function g.key(x,y,z)
       tracks[current_track].pattern.decay[i] = math.random(1,7) * 0.1
     end
   end
-
-  -- looper record
-  if x == 8 and y == 6 and z == 1 then
-    if looper_rec == false then 
-      looper_rec = true
-      looper_rec_armed = true
-    elseif looper_rec == true then 
-      looper_rec = false 
-      looper_rec_end_armed = true
-    end
-    grid_redraw()
-  end
-
-
-  -- looper toggle direction
-  if x == 7 and y == 6 and z == 1 then
-    if looper_direction == 1 then
-      looper_direction = -1
-      crow.ii.wtape.reverse(looper_direction)
-    else
-      looper_direction = 1
-      crow.ii.wtape.reverse(looper_direction)
-    end
-  end
-
-  -- looper slow down
-  if x == 6 and y == 6 and z == 1 then
-    crow.ii.wtape.speed(1,2)
-  end
-
-  -- looper normal speed
-  if x == 5 and y == 6 and z == 1 then
-    crow.ii.wtape.speed(1,1)
-  end
-
-  -- looper speed up
-  if x == 4 and y == 6 and z == 1 then
-    crow.ii.wtape.speed(2,1)
-  end
-
-
 
   -- reset note lengths
   if x == 6 and y == 8 and z == 1 then
