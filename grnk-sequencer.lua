@@ -3,7 +3,8 @@
 -- crow out 1+2 - 1v/oct - ar envelope
 -- crow out 3 - ar envelope
 --
--- todos: offsets aren't working correctly. They don't seem to be triggering on the right step.
+-- todos: add jf and w/
+-- todos: add jf toggle
 -- todos: move engine selection to param page
 -- todos: switching engines will disable jf if active
 -- todos: save patterns to preset
@@ -96,7 +97,7 @@ function init()
     tracks[i] = {
       source = 'engine',
       pos = 0,
-      offset_pos = 0,
+      offset_pos = 1,
       step_counter = 0,
       pattern = {
         clock_div = 1/16,
@@ -210,7 +211,7 @@ end
 function track_01_step()
   if sync_patterns_ready == true and current_track == 1 then
     tracks[1].pos = 0
-    tracks[1].offset_pos = 0
+    tracks[1].offset_pos = 1
     sync_patterns_ready = false
   end
   tracks[1].pos = util.wrap(tracks[1].pos+1,1,tracks[1].pattern.length) -- progress the sequence
@@ -219,7 +220,7 @@ function track_01_step()
     if tracks[1].pattern.prob >= rand then
       if tracks[1].pattern.notes[tracks[1].pos] ~= nil then
         if tracks[1].pattern.offsets[tracks[1].offset_pos] == nil then -- fixing pattern sync bug
-          tracks[1].offset_pos = 0
+          tracks[1].offset_pos = 1
         end
         play_note(
           tracks[1].source,
@@ -243,7 +244,7 @@ end
 function track_02_step()
   if sync_patterns_ready == true and current_track == 2 then
     tracks[2].pos = 0
-    tracks[2].offset_pos = 0
+    tracks[2].offset_pos = 1
     sync_patterns_ready = false
   end
   tracks[2].pos = util.wrap(tracks[2].pos+1,1,tracks[2].pattern.length) -- progress the sequence
@@ -252,7 +253,7 @@ function track_02_step()
     if tracks[2].pattern.prob >= rand then
       if tracks[2].pattern.notes[tracks[2].pos] ~= nil then
         if tracks[2].pattern.offsets[tracks[2].offset_pos] == nil then -- fixing pattern sync bug
-          tracks[2].offset_pos = 0
+          tracks[2].offset_pos = 1
         end
         play_note(
           tracks[2].source,
@@ -276,7 +277,7 @@ end
 function track_03_step()
   if sync_patterns_ready == true and current_track == 3 then
     tracks[3].pos = 0
-    tracks[3].offset_pos = 0
+    tracks[3].offset_pos = 1
     sync_patterns_ready = false
   end 
   tracks[3].pos = util.wrap(tracks[3].pos+1,1,tracks[3].pattern.length) -- progress the sequence
@@ -285,7 +286,7 @@ function track_03_step()
     if tracks[3].pattern.prob >= rand then
       if tracks[3].pattern.notes[tracks[3].pos] ~= nil then
         if tracks[3].pattern.offsets[tracks[3].offset_pos] == nil then -- fixing pattern sync bug
-          tracks[3].offset_pos = 0
+          tracks[3].offset_pos = 1
         end
         play_note(
           tracks[3].source,
@@ -309,7 +310,7 @@ end
 function track_04_step()
   if sync_patterns_ready == true and current_track == 4 then
     tracks[4].pos = 0
-    tracks[4].offset_pos = 0
+    tracks[4].offset_pos = 1
     sync_patterns_ready = false
   end 
   tracks[4].pos = util.wrap(tracks[4].pos+1,1,tracks[4].pattern.length) -- progress the sequence
@@ -318,7 +319,7 @@ function track_04_step()
     if tracks[4].pattern.prob >= rand then
       if tracks[4].pattern.notes[tracks[4].pos] ~= nil then
         if tracks[4].pattern.offsets[tracks[4].offset_pos] == nil then -- fixing pattern sync bug
-          tracks[4].offset_pos = 0
+          tracks[4].offset_pos = 1
         end
         play_note(
           tracks[4].source,
@@ -488,8 +489,12 @@ function grid_redraw()
       if tracks[current_track].pattern.offsets[x] ~= 0 then
         g:led(x,5,8)
       end
+       -- hacky business to adjust the lights by one to match the sequence
       if tracks[current_track].offset_pos == x then
-        g:led(x,5,15)
+        g:led(x-1,5,15)
+      end
+      if tracks[current_track].offset_pos == tracks[current_track].pattern.offset_length - (tracks[current_track].pattern.offset_length - 1) then
+        g:led(tracks[current_track].pattern.offset_length,5,15)
       end
     end
 
