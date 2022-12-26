@@ -24,7 +24,7 @@ engines = {}
 engines[1] = 'engine'
 engines[2] = 'crow 1+2'
 engines[3] = 'crow 3 env'
--- engines[4] = 'jf'
+engines[4] = 'jf'
 engine_counter = 1
 
 notes = {} -- this is the table that holds the scales' notes
@@ -519,6 +519,13 @@ function grid_redraw()
     end
 
     -- light up offsets sequence offsets
+    if alt_seq_offset_edit_mode == true then -- erase all the lights to cancel any rogue blinks
+      for x = 9,16 do
+        for y = 2, 8 do
+          g:led(x,y,0)
+        end
+      end
+    end
     if alt_seq_offset_edit_mode == true then
       for x = 9,8 + tracks[current_track].pattern.offset_length do
         for y = 2,8 do
