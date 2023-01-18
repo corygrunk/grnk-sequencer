@@ -1,7 +1,7 @@
 -- GRNK GRID
 -- 
 -- crow out 1+2 - 1v/oct - ar envelope
--- crow out 3 - ar envelope
+-- crow out 3+4 - 1v/oct - ar envelope
 --
 -- todos: add jf and w/
 -- todos: add jf toggle
@@ -23,7 +23,7 @@ scale_names = {}
 engines = {}
 engines[1] = 'engine'
 engines[2] = 'crow 1+2'
-engines[3] = 'crow 3 env'
+engines[3] = 'crow 3+4'
 engines[4] = 'jf'
 engine_counter = 1
 
@@ -45,9 +45,7 @@ function init()
   engine.release(note_decay)
 
   crow.output[2].action = "ar(dyn{ attack = 0.001 }, dyn{ decay = 0.1 }, 10, 'logarithmic')" -- linear sine logarithmic exponential
-  -- crow.output[4].action = "ar(dyn{ attack = 0.001 }, dyn{ decay = 0.1 }, 10, 'logarithmic')" -- linear sine logarithmic exponential
-  crow.output[3].action = "ar(dyn{ attack = 0.001 }, dyn{ decay = 0.1 }, 10, 'logarithmic')" -- linear sine logarithmic exponential
-  -- crow.output[4].action = "lfo(0.5, 5, 'sine')" -- linear sine logarithmic exponential
+  crow.output[4].action = "ar(dyn{ attack = 0.001 }, dyn{ decay = 0.1 }, 10, 'logarithmic')" -- linear sine logarithmic exponential
 
   for i = 1, #MusicUtil.SCALES do
     table.insert(scale_names, MusicUtil.SCALES[i].name)
@@ -356,11 +354,11 @@ function play_note(source,midi_note_num,note_att,note_dec,note_offset)
     crow.output[2].dyn.attack = note_att
     crow.output[2].dyn.decay = note_dec
     crow.output[2]()
-  elseif source == "crow 3 env" then
-    -- crow.output[3].volts = (midi_note_num[1] + note_offset - 60)/12
-    crow.output[3].dyn.attack = note_att
-    crow.output[3].dyn.decay = note_dec
-    crow.output[3]()
+  elseif source == "crow 3+4" then
+    crow.output[3].volts = (midi_note_num[1] + note_offset - 60)/12
+    crow.output[4].dyn.attack = note_att
+    crow.output[4].dyn.decay = note_dec
+    crow.output[4]()
   elseif source == "jf" then
     for i = 1, TAB.count(midi_note_num) do
       crow.ii.jf.play_note((midi_note_num[i] + note_offset - 60)/12, 4)
@@ -971,9 +969,9 @@ function redraw()
   if engine_text == 'crow 1+2' then cutoff_decay = 'attack' end
   if engine_text == 'crow 1+2' then att_amt = note_attack end
   if engine_text == 'crow 1+2' then dec_amt = note_decay end
-  if engine_text == 'crow 3 env' then cutoff_decay = 'attack' end
-  if engine_text == 'crow 3 env' then att_amt = note_attack end
-  if engine_text == 'crow 3 env' then dec_amt = note_decay end
+  if engine_text == 'crow 3+4' then cutoff_decay = 'attack' end
+  if engine_text == 'crow 3+4' then att_amt = note_attack end
+  if engine_text == 'crow 3+4' then dec_amt = note_decay end
   if engine_text == 'jf' then cutoff_decay = 'attack' end
   if engine_text == 'jf' then att_amt = 'n/a' end
   if engine_text == 'jf' then dec_amt = 'n/a' end
