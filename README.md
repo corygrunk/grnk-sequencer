@@ -3,7 +3,7 @@ A sequencer for Monome Norns with live pads
 
 Very WIP. Requires a Grid and Norns. Crow and Just Friends support.
 
-![simple instructions]([http://url/to/img.png](https://github.com/corygrunk/grnk-sequencer/blob/b2f1d8740f450d6466bf786b72ac4ee0953545de/grnk-seq-instructions.png))
+![basic instructions](https://github.com/corygrunk/grnk-sequencer/blob/b2f1d8740f450d6466bf786b72ac4ee0953545de/grnk-seq-instructions.png)
 
 ## TODO
 - There's no saving of anything, so once you leave the script, you're going to lose your patterns.
