@@ -5,7 +5,7 @@ Very WIP. Requires a Grid and Norns. Crow and Just Friends support.
 
 ![basic instructions](https://github.com/corygrunk/grnk-sequencer/blob/b2f1d8740f450d6466bf786b72ac4ee0953545de/grnk-seq-instructions.png)
 
-## install
+## Install on Norns
 Run this in maiden: `;install https://github.com/corygrunk/grnk-sequencer`
 
 ## TODO
